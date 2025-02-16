@@ -2,13 +2,14 @@ package biz
 
 import (
 	"context"
+	"encoding/json"
 	"go-template/data/cons"
 	"go-template/server/utils"
 	"go-template/service/types"
 )
 
 func (uc *TemplateService) SendRegisterEmailInBiz(ctx context.Context, req *types.SendRegisterEmailReq) (*types.SendRegisterEmailResp, error) {
-	isExist, err := uc.repo.IsUserExistInDataByEmail(ctx, req.Email)
+	code, err := uc.repo.IsUserExistInDataByEmail(ctx, req.Email)
 	if err != nil {
 		return &types.SendRegisterEmailResp{
 			BasicResp: types.BasicResp{
@@ -18,7 +19,7 @@ func (uc *TemplateService) SendRegisterEmailInBiz(ctx context.Context, req *type
 			},
 		}, err
 	}
-	if isExist {
+	if code == cons.UserStatusRegistered {
 		return &types.SendRegisterEmailResp{
 			BasicResp: types.BasicResp{
 				Code: cons.UserIsExistCode,
@@ -26,20 +27,38 @@ func (uc *TemplateService) SendRegisterEmailInBiz(ctx context.Context, req *type
 				Err:  nil,
 			},
 		}, nil
+	} else if code == cons.UserStatusWaitToRegister {
+		return &types.SendRegisterEmailResp{
+			BasicResp: types.BasicResp{
+				Code: cons.UserWaitToRegisterCode,
+				Msg:  cons.UserWaitToRegisterMsg,
+				Err:  nil,
+			},
+		}, nil
 	}
 
 	verifyCode := utils.GenerateRandomString()
-	addr, host, passswd, from := uc.repo.GetMailInfo()
-	err = utils.SendVerifyCodeToEmail(verifyCode, from, req.Email, addr, passswd, host, "注册验证码")
-	if err != nil {
-		return &types.SendRegisterEmailResp{
-			BasicResp: types.BasicResp{
-				Code: cons.InternalServerError,
-				Msg:  cons.InternalErrorMsg,
-				Err:  cons.InternalErr,
-			},
-		}, err
+
+	// 创建要发送的消息
+	message := &cons.SendEmailModel{
+		Email:      req.Email,
+		VerifyCode: verifyCode,
+		Subject:    "注册验证码",
 	}
+	messageBytes, err := json.Marshal(message)
+	if err != nil {
+		uc.ErrorfInBiz("SendRegisterEmailInBiz [Marshal] err is: %v", err)
+		return nil, err
+	}
+
+	// 发送消息到 Kafka
+	go func() {
+		err = uc.repo.SendKafkaMessage(cons.EmailRegisterNotificationTopic, messageBytes)
+		if err != nil {
+			uc.ErrorfInBiz("SendRegisterEmailInBiz [WriteMessages] err is: %v", err)
+		}
+	}()
+
 	return uc.repo.SendRegisterEmailInData(ctx, req.Email, verifyCode)
 }
 

@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	defaultPG = "postgres://postgres:pass@localhost:15432/template?sslmode=disable"
+	defaultPG = "***"
 )
 
 func main() {

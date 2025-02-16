@@ -25,8 +25,10 @@ const (
 const (
 	UserIsExistMsg           = "用户已存在"
 	UserIsExistCode          = 40009
-	UserNotFoundCode         = 40010
 	UserNotFoundMsg          = "用户不存在"
-	UserPasswordNotRightCode = 40011
+	UserNotFoundCode         = 40010
+	UserWaitToRegisterMsg    = "已发送验证码,等待注册"
+	UserWaitToRegisterCode   = 40011
 	UserPasswordNotRightMsg  = "密码错误"
+	UserPasswordNotRightCode = 40012
 )

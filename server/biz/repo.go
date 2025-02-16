@@ -14,14 +14,17 @@ type TemplateRepo interface {
 	GetSrvExitWait() time.Duration
 	GetMailInfo() (string, string, string, string)
 	GetJwtKey() string
+	GetVideoStoragePath() string
 
 	SendRegisterEmailInData(ctx context.Context, email, verifyCode string) (*types.SendRegisterEmailResp, error)
 	RegisterUserInData(ctx context.Context, req *types.RegisterUserReq) (*types.RegisterUserResp, error)
 
 	SendChangePasswordEmailInData(ctx context.Context, email, verifyCode string) (*types.SendChangePasswdEmailResp, error)
 	ChangePasswordInData(ctx context.Context, req *types.ChangePasswordReq) (*types.ChangePasswordResp, error)
-	IsUserExistInDataByEmail(ctx context.Context, email string) (bool, error)
+	IsUserExistInDataByEmail(ctx context.Context, email string) (string, error)
 	IsPasswordRightInData(ctx context.Context, userName, password string) (bool, error)
+
+	SendKafkaMessage(topic string, message []byte) error
 }
 
 type TemplateService struct {
@@ -43,3 +46,4 @@ func (uc *TemplateService) GetSrvAddr() string            { return uc.repo.GetSr
 func (uc *TemplateService) GetSrvPort() string            { return uc.repo.GetSrvPort() }
 func (uc *TemplateService) GetSrvExitWait() time.Duration { return uc.repo.GetSrvExitWait() }
 func (uc *TemplateService) GetJwtKey() string             { return uc.repo.GetJwtKey() }
+func (uc *TemplateService) GetVideoStoragePath() string   { return uc.repo.GetVideoStoragePath() }

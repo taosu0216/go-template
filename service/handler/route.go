@@ -1,13 +1,15 @@
 package handler
 
 import (
-	"github.com/cloudwego/hertz/pkg/app/server"
-	"github.com/hertz-contrib/cors"
 	v1 "go-template/service/handler/api/v1"
 	"go-template/service/handler/api/v1/auth"
 	"go-template/service/handler/api/v1/user"
+	"go-template/service/handler/api/v1/video"
 	"go-template/service/svc"
 	"time"
+
+	"github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/hertz-contrib/cors"
 )
 
 func InitService(r *svc.TemplateHandler) *server.Hertz {
@@ -52,6 +54,13 @@ func InitService(r *svc.TemplateHandler) *server.Hertz {
 	authGroup.Use(JWTAuthMiddleware(r))
 	{
 		authGroup.GET("/ping", auth.GeneratePingLogic())
+	}
+
+	// 视频路由组
+	videoGroup := v1Group.Group("/video")
+	videoGroup.Use(VideoAuthMiddleware())
+	{
+		videoGroup.GET("/stream/:filename", video.GenerateVideoStreamLogic(r))
 	}
 
 	return h

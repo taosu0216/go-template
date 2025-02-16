@@ -2,8 +2,15 @@ package conf
 
 import (
 	"fmt"
+
 	"github.com/spf13/viper"
 )
+
+type KafkaCfg struct {
+	Brokers []string `json:"Brokers"`
+	Topics  []string `json:"Topics"`
+	GroupID string   `json:"GroupID"`
+}
 
 type Config struct {
 	AiCfg     *AiCfg     `json:"AiCfg"`
@@ -12,6 +19,8 @@ type Config struct {
 	RouterCfg *RouterCfg `json:"RouterCfg"`
 	MailCfg   *MailCfg   `json:"MailCfg"`
 	JwtCfg    *JwtCfg    `json:"JwtCfg"`
+	VideoCfg  *VideoCfg  `json:"VideoCfg"`
+	KafkaCfg  *KafkaCfg  `json:"KafkaCfg"`
 }
 
 func InitCfg() Config {

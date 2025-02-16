@@ -3,6 +3,7 @@ package interfaces
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"go-template/data/cons"
@@ -118,6 +119,13 @@ func (dr *DataRepo) RegisterUserInData(ctx context.Context, req *types.RegisterU
 			},
 		}, err
 	}
+	go func() {
+		userKey := fmt.Sprintf("user_%s", req.Email)
+		err = dr.Cache.HSet(ctx, cons.UserMapKey, userKey, cons.UserStatusRegistered).Err()
+		if err != nil {
+			dr.ErrorfInData("RegisterUserInData [Cache HSet] err: %v", err)
+		}
+	}()
 	return &types.RegisterUserResp{
 		BasicResp: types.BasicResp{
 			Code: cons.BasicSuccessCode,
@@ -127,6 +135,16 @@ func (dr *DataRepo) RegisterUserInData(ctx context.Context, req *types.RegisterU
 	}, nil
 }
 
-func (dr *DataRepo) IsUserExistInDataByEmail(ctx context.Context, email string) (bool, error) {
-	return dr.DB.User.Query().Where(user.EmailEQ(email)).Exist(ctx)
+func (dr *DataRepo) IsUserExistInDataByEmail(ctx context.Context, email string) (string, error) {
+	userKey := fmt.Sprintf("user_%s", email)
+	value, err := dr.Cache.HGet(ctx, cons.UserMapKey, userKey).Result()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return cons.UserStatusNotRegister, nil
+		}
+		return cons.UserStatusNotRegister, err
+	}
+	return value, nil
+
+	//return dr.DB.User.Query().Where(user.EmailEQ(email)).Exist(ctx)
 }

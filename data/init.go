@@ -3,11 +3,15 @@ package data
 import (
 	"context"
 	"fmt"
-	"github.com/redis/go-redis/v9"
 	"go-template/data/conf"
+	"go-template/data/cons"
 	"go-template/data/db/ent"
 	"go-template/logger"
+	"net"
 	"time"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/segmentio/kafka-go"
 
 	_ "github.com/lib/pq"
 )
@@ -19,6 +23,9 @@ type ToolsCtx struct {
 	Cache *redis.Client `json:"cache"`
 
 	Logger *logger.ZapLogger
+
+	KafkaWritersMaps map[string]*kafka.Writer
+	KafkaReadersMaps map[string]*kafka.Reader
 }
 
 var Tools *ToolsCtx
@@ -38,12 +45,21 @@ func Init(logger *logger.ZapLogger) {
 	cache := initCache(cfg, logger)
 	logger.InitInfof("cache client")
 
+	kafkaWriters := initKafkaWriter(cfg, logger)
+	kafkaReaders := initKafkaReader(cfg, logger)
+
+	logger.InitInfof("kafka client")
+
 	Tools = &ToolsCtx{
 		Cfg:    cfg,
 		DB:     db,
 		Cache:  cache,
 		Logger: logger,
+
+		KafkaWritersMaps: kafkaWriters,
+		KafkaReadersMaps: kafkaReaders,
 	}
+
 }
 
 func initCache(cfgs conf.Config, logger *logger.ZapLogger) *redis.Client {
@@ -72,4 +88,39 @@ func initDB(cfgs conf.Config, logger *logger.ZapLogger) *ent.Client {
 		panic(err)
 	}
 	return cli
+}
+
+func initKafkaWriter(cfgs conf.Config, logger *logger.ZapLogger) map[string]*kafka.Writer {
+	writers := make(map[string]*kafka.Writer)
+	for _, topic := range cons.KafkaTopics {
+		writer := kafka.NewWriter(kafka.WriterConfig{
+			Brokers: cfgs.KafkaCfg.Brokers,
+			Topic:   topic,
+			Dialer: &kafka.Dialer{
+				Timeout:   10 * time.Second,
+				DualStack: true,
+				LocalAddr: &net.TCPAddr{IP: net.ParseIP("0.0.0.0")},
+			},
+		})
+		// 你可以在这里添加更多的初始化逻辑，比如测试连接
+		writers[topic] = writer
+	}
+	return writers
+}
+
+func initKafkaReader(cfgs conf.Config, logger *logger.ZapLogger) map[string]*kafka.Reader {
+	readers := make(map[string]*kafka.Reader)
+	for _, topic := range cons.KafkaTopics {
+		reader := kafka.NewReader(kafka.ReaderConfig{
+			Brokers:        cfgs.KafkaCfg.Brokers,
+			Topic:          topic,
+			GroupID:        cfgs.KafkaCfg.GroupID, // 假设你有一个GroupID
+			StartOffset:    kafka.LastOffset,
+			CommitInterval: time.Second,
+		})
+		// 你可以在这里添加更多的初始化逻辑，比如测试连接
+		readers[topic] = reader
+	}
+	logger.InfofInData("init kafka reader %v", readers)
+	return readers
 }

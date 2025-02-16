@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"encoding/json"
 	"go-template/data/cons"
 	"go-template/server/utils"
 	"go-template/service/types"
@@ -12,7 +13,7 @@ func (uc *TemplateService) ChangePasswordInBiz(ctx context.Context, req *types.C
 }
 
 func (uc *TemplateService) SendChangePasswordEmailInBiz(ctx context.Context, req *types.SendChangePasswdEmailReq) (*types.SendChangePasswdEmailResp, error) {
-	isExist, err := uc.repo.IsUserExistInDataByEmail(ctx, req.Email)
+	code, err := uc.repo.IsUserExistInDataByEmail(ctx, req.Email)
 	if err != nil {
 		return &types.SendChangePasswdEmailResp{
 			BasicResp: types.BasicResp{
@@ -22,7 +23,7 @@ func (uc *TemplateService) SendChangePasswordEmailInBiz(ctx context.Context, req
 			},
 		}, err
 	}
-	if !isExist {
+	if code == cons.UserStatusNotRegister || code == cons.UserStatusWaitToRegister {
 		return &types.SendChangePasswdEmailResp{
 			BasicResp: types.BasicResp{
 				Code: cons.UserNotFoundCode,
@@ -33,16 +34,24 @@ func (uc *TemplateService) SendChangePasswordEmailInBiz(ctx context.Context, req
 	}
 
 	verifyCode := utils.GenerateRandomString()
-	addr, host, passswd, from := uc.repo.GetMailInfo()
-	err = utils.SendVerifyCodeToEmail(verifyCode, from, req.Email, addr, passswd, host, "修改密码验证码")
-	if err != nil {
-		return &types.SendChangePasswdEmailResp{
-			BasicResp: types.BasicResp{
-				Code: cons.InternalServerError,
-				Msg:  cons.InternalErrorMsg,
-				Err:  cons.InternalErr,
-			},
-		}, err
+	message := &cons.SendEmailModel{
+		Email:      req.Email,
+		VerifyCode: verifyCode,
+		Subject:    "修改密码-验证码",
 	}
+	messageBytes, err := json.Marshal(message)
+	if err != nil {
+		uc.ErrorfInBiz("SendChangePasswordEmailInBiz [Marshal] err is: %v", err)
+		return nil, err
+	}
+
+	// 发送消息到 Kafka
+	go func() {
+		err = uc.repo.SendKafkaMessage(cons.EmailPasswordResetNotificationTopic, messageBytes)
+		if err != nil {
+			uc.ErrorfInBiz("SendChangePasswordEmailInBiz [WriteMessages] err is: %v", err)
+		}
+	}()
+
 	return uc.repo.SendChangePasswordEmailInData(ctx, req.Email, verifyCode)
 }

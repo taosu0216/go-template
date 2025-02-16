@@ -2,13 +2,14 @@ package logger
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+
 	"github.com/go-kratos/kratos/v2/log"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	lumber "gopkg.in/natefinch/lumberjack.v2"
-	"os"
-	"path/filepath"
-	"runtime"
 )
 
 var _ log.Logger = (*ZapLogger)(nil)
@@ -156,6 +157,24 @@ func (zapl *ZapLogger) WarnfInData(s string, v ...interface{}) {
 	s = "[data] " + s
 	zapl.Sugar.Warnf(s, v...)
 }
+
+func (zapl *ZapLogger) ErrorfInDataKafka(s string, v ...interface{}) {
+	s = "[data kafka] " + s
+	zapl.Sugar.Errorf(s, v...)
+}
+func (zapl *ZapLogger) InfofInDataKafka(s string, v ...interface{}) {
+	s = "[data kafka] " + s
+	zapl.Sugar.Infof(s, v...)
+}
+func (zapl *ZapLogger) ErrorInDataKafka(s string) {
+	s = "[data kafka] " + s
+	zapl.Sugar.Error(s)
+}
+func (zapl *ZapLogger) InfoInDataKafka(s string) {
+	s = "[data kafka] " + s
+	zapl.Sugar.Info(s)
+}
+
 func (zapl *ZapLogger) ErrorfInService(s string, v ...interface{}) {
 	s = "[service] " + s
 	zapl.Sugar.Errorf(s, v...)

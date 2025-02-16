@@ -67,4 +67,5 @@ func (u *UserRegisterSendEmailLogic) SendRegisterEmail(ctx context.Context, c *a
 		u.ErrorfInService("SendRegisterEmailInBiz err is: %v", err)
 	}
 	c.JSON(200, resp)
+	return
 }
